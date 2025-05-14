@@ -43,12 +43,28 @@ integral = 0
 
 currentresp = 0 # current response
 
+#without anti windup
+#max PID val is currently 24669.827997126748
+max = 150000
+
+def sat(val, m):
+    if (val > m): 
+        #print(val)
+        return m
+    elif (val < -1*m):
+        #print(val) 
+        return -1*m
+
+    return val
+
 for i in range(0, len(times)-1):
     error = vals[i] - currentresp
     integral += error * dt
     PIDval = K/Ti * integral + K * error
 
-    t, r, s = ctrl.forced_response(temp_system, [times[i], times[i + 1]], [PIDval, PIDval], X0=state, return_x = True) #time, response
+    PIDvalsat = sat(PIDval, max) # saturates output
+
+    t, r, s = ctrl.forced_response(temp_system, [times[i], times[i + 1]], [PIDvalsat, PIDvalsat], X0=state, return_x = True) #time, response
     currentresp = np.squeeze(r[-1])
     response.append(currentresp)
 
