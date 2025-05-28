@@ -90,5 +90,8 @@ for i in range(0, len(times)-1):
 plt.plot(times[:-1], response, label = 'Without Anti-windup')
 plt.plot(times[:-1], response2, label = 'With Anti-windup')
 plt.plot(times, vals, label = 'Setpoint')
+plt.xlabel('Time (s)')
+plt.ylabel('Temperature (C)')
 plt.legend()
+plt.savefig('antiwindupsim.png')
 plt.show()

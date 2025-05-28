@@ -1,0 +1,77 @@
+import control as ctrl
+import numpy as np
+import matplotlib.pyplot as plt
+
+def KLT_transfer(Kp,L,T):
+    numer = [Kp]
+    deno = [T,1]
+    
+    # modeling the time delay
+    delay_approx = ctrl.pade(L,3)
+    delay_num, delay_den = delay_approx
+    
+    system_without_delay = ctrl.TransferFunction(numer, deno)
+    delay_tf = ctrl.TransferFunction(delay_num, delay_den)
+    system_with_delay = ctrl.series(system_without_delay, delay_tf)
+    
+    return system_with_delay
+    
+Kp = -0.000912
+L = 1.5
+T = 110.5
+
+K = 0.15 / Kp + (0.35 - L*T / ((L + T)*(L + T)))*(T / (Kp * L))
+Ti = 0.35 * L + 6.7*L*T*T / (T*T + 2*L*T + 10*L*L)
+
+temp_system = KLT_transfer(Kp, L, T)
+times = np.linspace(0, 60*4, 500*4)
+
+recordedTimes = []
+tempThreshold = 0
+controlThreshold = 0
+
+dt = times[1] - times[0]
+vals = np.full(500*4, 20)
+
+state = 0
+response = []
+integral = 0
+currentresp = 0 # current response
+countertime = 0
+
+for i in range(0, len(times)-1):
+    error = vals[i] - currentresp
+    
+    PIDval = K/Ti * integral + K * error
+
+    t, r, s = ctrl.forced_response(temp_system, [times[i], times[i + 1]], [PIDval, PIDval], X0=state, return_x = True) #time, response
+    currentresp = np.squeeze(r[-1])
+    response.append(currentresp)
+
+    recordedTimes.append(times[i])
+
+    integral += error * dt
+
+    state = np.squeeze(s[:,-1])
+
+    if (i >= 1): #measures amount of time that temperature and control stays within threshold
+        if (countertime == 0): 
+            tempThreshold = response[-1]
+            controlThreshold = PIDval
+
+            countertime += dt
+        elif(abs(tempThreshold - response[-1]) < 0.1 and abs(PIDval - controlThreshold) < 100): #adds to countertime if temperature and controll output are within threshold 
+            countertime += dt
+        else:
+            countertime = 0
+    
+    if countertime > 10: #if stays within threshold for three seconds, break
+        print("Working point output control: " + str(PIDval))
+        print("Working point temperature: " + str(response[-1]))
+        break
+
+plt.plot(recordedTimes, response)
+#plt.plot(recordedTimes, vals, label = 'Setpoint')
+plt.xlabel('Time (s)')
+plt.ylabel('Temperature (C)')
+plt.show()
